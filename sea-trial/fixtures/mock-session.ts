@@ -1,4 +1,5 @@
 import type { InputOptions, Session, SessionOptions, SessionResources, StartSession } from "../../packages/oar/src/contracts/session.js";
+import { UnsupportedOptionError } from "../../packages/oar/src/contracts/errors.js";
 import { withdrawHeld } from "../../packages/oar/src/shared/held-input.js";
 import { inputImagesRefusal } from "../../packages/oar/src/shared/input-images.js";
 import { sealSession } from "../../packages/oar/src/shared/seal-session.js";
@@ -25,6 +26,13 @@ export const createMockSession = (attach?: AttachMock): StartSession => async (_
   const effort = options.effort ?? MOCK_DEFAULT_EFFORT;
   if (!MOCK_EFFORT_LEVELS.includes(effort)) {
     throw new Error(`mock runtime has no effort level ${effort} (levels: ${MOCK_EFFORT_LEVELS.join(", ")})`);
+  }
+  // A fork is a new session, never a reopen: same rule the vendor adapters keep.
+  if (options.resume !== undefined && options.forkFrom !== undefined) {
+    throw new UnsupportedOptionError("forkFrom", "forkFrom and resume are mutually exclusive");
+  }
+  if (options.forkFrom?.through !== undefined) {
+    throw new UnsupportedOptionError("forkFrom", "the mock forks the whole session; forkFrom.through is not supported");
   }
   const kernel = createSessionKernel(options.resume);
   kernel.opened(context ?? { requested: "auto", placement: "in_process" });
@@ -62,7 +70,14 @@ export const createMockSession = (attach?: AttachMock): StartSession => async (_
     active = null; queued.length = 0; steered.length = 0;
   };
   const attachment = await attach?.(kernel, options, stop);
-  kernel.frame({ type: "mock/model", native: { model: "mock-1", effort }, events: [{ kind: "model", model: "mock-1" }, { kind: "effort", effort }] });
+  const forkLink = options.forkFrom === undefined
+    ? null
+    : kernel.link({ parent: options.forkFrom.sessionId, child: kernel.sessionId, via: "fork" });
+  kernel.frame({ type: "mock/model", native: { model: "mock-1", effort }, events: [
+    ...(forkLink === null ? [] : [forkLink]),
+    { kind: "model", model: "mock-1" },
+    { kind: "effort", effort },
+  ] });
   const capabilities = { queue: { durable: false }, attribution: "none", images: true } as const;
   return sealSession({
     id: kernel.sessionId,

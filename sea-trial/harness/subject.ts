@@ -1,5 +1,5 @@
 import type { Runtime } from "../../packages/oar/src/contracts/runtime.js";
-import type { McpServer, Session } from "../../packages/oar/src/contracts/session.js";
+import type { McpServer, Session, SessionForkSource } from "../../packages/oar/src/contracts/session.js";
 import { record } from "./trace.js";
 
 /** What a behavior case runs against: one runtime plus how to open a session on it. */
@@ -9,6 +9,7 @@ export interface RuntimeUnderTest {
   /** Probe installation, then open a session in the subject's directory. */
   startSession(overrides?: {
     readonly resume?: string;
+    readonly forkFrom?: SessionForkSource;
     readonly model?: string;
     readonly effort?: string;
     readonly serviceTier?: string;
@@ -43,12 +44,19 @@ export function runtimeUnderTest(
         ...(overrides.serviceTier === undefined ? {} : { serviceTier: overrides.serviceTier }),
         ...(env === undefined ? {} : { env }),
         ...(overrides.resume === undefined ? {} : { resume: overrides.resume }),
+        ...(overrides.forkFrom === undefined ? {} : { forkFrom: overrides.forkFrom }),
         ...(overrides.systemPrompt === undefined ? {} : { systemPrompt: overrides.systemPrompt }),
         ...(overrides.appendSystemPrompt === undefined ? {} : { appendSystemPrompt: overrides.appendSystemPrompt }),
         ...(overrides.mcpServers === undefined ? {} : { mcpServers: overrides.mcpServers }),
         ...(overrides.disallowedTools === undefined ? {} : { disallowedTools: overrides.disallowedTools }),
       });
-      record({ kind: "session_started", sessionId: session.id, resume: overrides.resume ?? null, effort: overrides.effort ?? null });
+      record({
+        kind: "session_started",
+        sessionId: session.id,
+        resume: overrides.resume ?? null,
+        forkFrom: overrides.forkFrom === undefined ? null : { ...overrides.forkFrom },
+        effort: overrides.effort ?? null,
+      });
       session.rawEvents((entry) => {
         record({ kind: "session_record", record: entry });
       });

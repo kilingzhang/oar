@@ -1,5 +1,6 @@
 /* oxlint-disable import/max-dependencies -- SDK startup owns option validation, native settings, credentials, model resolution and lifecycle. */
 import type { RefusedSessionOptions, SessionOptions } from "../../contracts/index.js";
+import { resolve } from "node:path";
 import { UnsupportedOptionError } from "../../contracts/errors.js";
 import { checkSessionName, refuseSessionOptions } from "../../shared/session-options.js";
 import { sessionEnvironment } from "../../shared/environment.js";
@@ -180,13 +181,12 @@ export async function openPiAgentSession(options: SessionOptions, rememberKey?: 
   const sessionDir = piSessionDir(options.cwd, agentDir);
   // A fork reads the whole saved conversation into a new session file whose
   // header points at the source. A resume stays in the source's own file.
+  const forkSource = options.forkFrom === undefined
+    ? null
+    : await piFindSessionFile(sdk.SessionManager, options.forkFrom.sessionId, options.cwd, sessionDir);
   const reopened = options.resume !== undefined || options.forkFrom !== undefined;
-  const sessionManager = options.forkFrom !== undefined
-    ? sdk.SessionManager.forkFrom(
-        await piFindSessionFile(sdk.SessionManager, options.forkFrom.sessionId, options.cwd, sessionDir),
-        options.cwd,
-        sessionDir,
-      )
+  const sessionManager = forkSource !== null
+    ? sdk.SessionManager.forkFrom(forkSource, options.cwd, sessionDir)
     : (options.resume === undefined
       ? sdk.SessionManager.create(options.cwd, sessionDir)
       : sdk.SessionManager.open(
@@ -218,6 +218,15 @@ export async function openPiAgentSession(options: SessionOptions, rememberKey?: 
     ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
     ...(overlay === undefined ? {} : { customTools: [await piEnvBashTool(options.cwd, overlay)] }),
   });
+  if (forkSource !== null) {
+    // The edge is only real if pi's own new header names the source file; a
+    // header naming anything else is not the fork that was asked for.
+    const parentSession = sessionManager.getHeader()?.parentSession;
+    if (parentSession === undefined || resolve(parentSession) !== resolve(forkSource)) {
+      session.dispose();
+      throw new Error(`pi fork header names ${parentSession ?? "no parent session"}, not the source file ${forkSource}`);
+    }
+  }
   if (reopened) {
     // Pi 1.3 restores the transcript's active tools, including a prior open's
     // exclusions. OAR's denylist belongs to this open. Restore the current

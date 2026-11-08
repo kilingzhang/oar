@@ -383,9 +383,11 @@ The directory formula, lookup and error are pinned by
 source file the same way resume does, then calls
 `SessionManager.forkFrom(sourcePath, cwd, sessionDir)` (SDK 1.5.0): pi
 writes a new session file whose header `parentSession` names the source file
-and which holds a copy of the source's entries. OAR reports the new header
-id as `Session.id` and records a `fork` edge, with the native
-`parentSession` as its evidence, on the `pi/session_opened` frame. The new
+and which holds a copy of the source's entries. OAR reads the new header back
+through `SessionManager.getHeader()`: the open fails unless `parentSession`
+is the resolved source file, so a `fork` edge is never recorded for a file
+pi did not write as that fork. It reports the header id as `Session.id` and
+records the edge on the `pi/session_opened` frame. The new
 file is a new session: other open options apply as on create, the copied
 session name is replaced by a requested `name`, and the restored tool set is
 reset like a resume. Pi forks the whole saved conversation, so

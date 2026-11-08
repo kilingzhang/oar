@@ -215,9 +215,17 @@ no rollout fails exactly like a missing resume (`SessionNotFoundError`), and
 codex persists a thread only after its first turn, so a just-started,
 never-prompted thread cannot be forked. Fork and resume are mutually
 exclusive; the reply's model and effort are read back against any explicit
-request, as on a new thread. Probed on 0.165.0: `thread/start`, one turn,
-then `thread/fork` returned a new thread whose `forkedFromId` named the
-source ([tests](../../tests/codex/codex-fork.test.ts)).
+request, as on a new thread. A requested `name` is set with
+`thread/name/set` like on a new thread, replacing the name codex copies from
+the source (scripted app-server:
+[tests](../../tests/codex/codex-session-name.test.ts)). The fork reply
+carries no usage, and no `thread/tokenUsage/updated` arrives before the first
+turn starts ([env] 0.165.0: none within 3 s), so the thread's cumulative
+baseline stays unknown and root `usage` carries no `tokens`; `context`
+appears with the first turn's usage notification. Probed on 0.165.0:
+`thread/start`, one turn, then `thread/fork` returned a new thread whose
+`forkedFromId` named the source
+([tests](../../tests/codex/codex-fork.test.ts)).
 
 **Process directory (mapped).** The app-server starts in `SessionOptions.cwd`,
 so stdio MCP servers and a relative `CODEX_HOME` resolve in the session's

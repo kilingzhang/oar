@@ -136,6 +136,7 @@ export type {
   SessionNode,
   RawEventObserver,
   McpServer,
+  SessionForkSource,
   SessionOptions,
   RawEvent,
   SessionResources,

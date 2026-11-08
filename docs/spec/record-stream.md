@@ -912,9 +912,11 @@ type EventBody = RuntimeEventBody | ControlEventBody;
 Which runtimes say which kinds (runtime pages hold the evidence):
 
 - `session_linked`: Codex collaboration items, ACP native lineage,
-  OpenCode v2 child attribution, and the native fork evidence of Claude,
-  Codex and Pi (`via: "fork"`). The source frame carries both endpoints;
-  `graphOf` deduplicates repeated edges without changing the records.
+  OpenCode v2 child attribution, and forks (`via: "fork"`): Codex's
+  `thread.forkedFromId` and Pi's fork header are native evidence, while
+  Claude's stream carries no lineage field, so its edge names the source the
+  adapter forked from. The source frame carries both endpoints; `graphOf`
+  deduplicates repeated edges without changing the records.
 
 - `turn_active`: codex `turn/started`, dsh's native inbox claim or empty
   `turn/start`, Pi `agent_start` and per-input

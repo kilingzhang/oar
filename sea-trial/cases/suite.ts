@@ -4,6 +4,7 @@ import { installationCases } from "./installation.js";
 import { sessionCases } from "./session.js";
 import { sessionDisposeCases } from "./session-dispose.js";
 import { sessionEffortCases } from "./session-effort.js";
+import { sessionForkCases } from "./session-fork.js";
 import { sessionImagesCases } from "./session-images.js";
 import { sessionWithdrawCases } from "./session-withdraw.js";
 
@@ -14,6 +15,7 @@ export const trialCases: readonly TrialCase[] = [
   ...sessionCases,
   ...sessionDisposeCases,
   ...sessionEffortCases,
+  ...sessionForkCases,
   ...sessionImagesCases,
   ...sessionWithdrawCases,
 ];

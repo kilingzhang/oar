@@ -49,10 +49,13 @@ claude: root ──tool_call(call_3)──▶ subagent "a1"    (agent parent/chi
 Edges come from native evidence of a new session derived from another: a
 tool call that spawns a child session, or a fork the runtime reports.
 `SessionOptions.forkFrom` opens a new session with a new native id whose
-history comes from the source, and the runtime's own evidence places a
-`fork` edge on the new stream's first root frame (Claude's
-`SessionStart:fork` frame under the new id, Codex's `thread.forkedFromId`,
-Pi's new session header `parentSession`). `SessionOptions.resume` reopens
+history comes from the source, and a `fork` edge rides on the new stream's
+first root frame. Codex reports the lineage itself (`thread.forkedFromId`),
+and Pi's new session header names the source file, which OAR reads back
+before opening. Claude's stream carries no lineage field: when SessionStart
+hooks are configured its first frames are a `SessionStart:fork` hook under
+the new id, otherwise `system/init`; the edge names the requested source.
+`SessionOptions.resume` reopens
 the same node with a fresh stream at seq 0, so it is not an edge. Host
 continuity between distinct sessions (external compaction) is never an edge
 either: the new session's first prompt carries the summary as its input,

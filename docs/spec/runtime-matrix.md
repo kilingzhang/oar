@@ -726,14 +726,14 @@ the saved conversation of `sessionId`, under an id the runtime assigns or
 OAR chooses. It is mutually exclusive with `resume`: a fork is a new
 session, not a reopen of the source. `Session.id` is the fork's new native
 id, and the new stream starts at seq 0 with a `fork` edge in the session
-graph. Other open options apply to the fork as to a new session; a Pi fork
-copies the source's session name, and a requested `name` replaces it.
+graph. Other open options apply to the fork as to a new session; Pi and
+Codex copy the source's session name, and a requested `name` replaces it.
 
 | runtime | native call | new identity | lineage evidence | `through` |
 |---|---|---|---|---|
-| claude | `--resume <source> --fork-session --session-id <new>` (CLI 2.1.319) | the UUID OAR passes | the new `SessionStart:fork` frame under that id | refused: claude forks the whole saved conversation |
+| claude | `--resume <source> --fork-session --session-id <new>` (CLI 2.1.319) | the UUID OAR passes | none in the stream (a `SessionStart:fork` hook frame when SessionStart hooks are configured); the edge names the requested source | refused: claude forks the whole saved conversation |
 | codex (app-server) | `thread/fork { threadId, lastTurnId?, excludeTurns: true, cwd, … }` (0.165.0) | the reply's `thread.id` | the reply's `thread.forkedFromId` | `lastTurnId`, i.e. fork through that turn |
-| pi (SDK) | `SessionManager.forkFrom(sourcePath, cwd, sessionDir)` (1.5.0) | the new session file's header id | that header's `parentSession` naming the source file | refused: pi forks the whole saved conversation |
+| pi (SDK) | `SessionManager.forkFrom(sourcePath, cwd, sessionDir)` (1.5.0) | the new session file's header id | that header's `parentSession` naming the source file, read back before the session opens | refused: pi forks the whole saved conversation |
 
 `through` is a runtime-native turn anchor and is refused where the runtime
 offers no such selection rather than silently forking everything. A fork

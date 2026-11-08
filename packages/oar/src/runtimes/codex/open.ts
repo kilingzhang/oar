@@ -161,14 +161,16 @@ export function codexThreadOpen(options: SessionOptions): { readonly method: Cod
 /**
  * SessionOptions.name (#368): the name to give the opened thread, or null. A
  * new thread gets it; a resumed one only when the resume reply shows no name,
- * so a name the user gave in their app is kept. The name reads back on the
- * thread ([env] codex 0.162.0, experiments/codex-session-name.ts).
+ * so a name the user gave in their app is kept. A fork is a new session, so it
+ * gets the requested name even though codex copies the source thread's name
+ * onto the fork. The name reads back on the thread ([env] codex 0.162.0,
+ * experiments/codex-session-name.ts).
  */
 export function codexThreadName(method: CodexOpenMethod, options: SessionOptions, reply: JsonRecord): string | null {
   if (options.name === undefined) {
     return null;
   }
-  const current = method === "thread/start" ? undefined : asRecord(reply.thread)?.name;
+  const current = method === "thread/resume" ? asRecord(reply.thread)?.name : undefined;
   return typeof current === "string" && current.length > 0 ? null : options.name;
 }
 

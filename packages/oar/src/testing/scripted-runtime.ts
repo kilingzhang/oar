@@ -1,4 +1,5 @@
 import type { RuntimeBrand } from "../contracts/brand.js";
+import { UnsupportedOptionError } from "../contracts/errors.js";
 import { defineRuntime, type Runtime } from "../contracts/runtime.js";
 import type { InputImage, InputOptions, RuntimeEventBody, Session, SessionCapabilities, SessionOptions, StartSession, TokenTotals, TurnOutcome } from "../contracts/session.js";
 // Built only on the public runtime-author SPI (@botiverse/oar/kernel), like any host's runtime.
@@ -78,6 +79,12 @@ export function scriptedRuntime(options: ScriptedRuntimeOptions): Runtime {
     // SessionOptions.effort's contract: a runtime that lists no effort levels refuses one, never ignores it.
     if (sessionOptions.effort !== undefined) {
       throw new Error(`${id} lists no reasoning-effort levels; it cannot run at effort "${sessionOptions.effort}"`);
+    }
+    if (sessionOptions.resume !== undefined && sessionOptions.forkFrom !== undefined) {
+      throw new UnsupportedOptionError("forkFrom", "forkFrom and resume are mutually exclusive");
+    }
+    if (sessionOptions.forkFrom?.through !== undefined) {
+      throw new UnsupportedOptionError("forkFrom", `${id} forks the whole session; forkFrom.through is not supported`);
     }
     const kernel = createSessionKernel(sessionOptions.resume);
     kernel.opened(context ?? { requested: "auto", placement: "in_process" });
@@ -193,7 +200,13 @@ export function scriptedRuntime(options: ScriptedRuntimeOptions): Runtime {
       end(turnState, { kind: "aborted" });
     }
 
-    frame("scripted/model", { model }, [{ kind: "model", model }]);
+    const forkLink = sessionOptions.forkFrom === undefined
+      ? null
+      : kernel.link({ parent: sessionOptions.forkFrom.sessionId, child: kernel.sessionId, via: "fork" });
+    frame("scripted/model", { model }, [
+      ...(forkLink === null ? [] : [forkLink]),
+      { kind: "model", model },
+    ]);
     const capabilities: SessionCapabilities = { queue: { durable: false }, attribution: "none", images: true };
     return sealSession({
       id: kernel.sessionId,

@@ -8,6 +8,21 @@ vi.mock("../../packages/oar/src/shared/executable/index.js", () => ({ spawnLineP
 afterEach(() => { spawnLineProcess.mockReset(); });
 const installation = { kind: "available", via: "executable", command: "codex" } as const;
 
+/** The opened thread a method answers with; `{}` for every other method. */
+function openedThread(method: string | undefined, name: string | null): Record<string, unknown> {
+  if (method === "thread/fork") {
+    // codex copies the source thread's name onto the fork.
+    return { thread: { id: "thread", forkedFromId: "source", name }, model: "gpt-5.5" };
+  }
+  if (method === "thread/start") {
+    return { thread: { id: "thread", name: null } };
+  }
+  if (method === "thread/resume") {
+    return { thread: { id: "thread", name } };
+  }
+  return {};
+}
+
 /** An app-server whose opened thread carries `name` (codex reports null for an unnamed one). */
 function server(name: string | null, nameSet?: JsonRecord): JsonRecord[] {
   const requests: JsonRecord[] = [];
@@ -15,8 +30,8 @@ function server(name: string | null, nameSet?: JsonRecord): JsonRecord[] {
     const message = asRecord(parseJson(line));
     if (message?.id === undefined) { return; }
     requests.push(message);
-    const opened = message.method === "thread/start" || message.method === "thread/resume";
-    const reply = message.method === "thread/name/set" ? nameSet ?? { result: {} } : { result: opened ? { thread: { id: "thread", name: message.method === "thread/start" ? null : name } } : {} };
+    const method = typeof message.method === "string" ? message.method : undefined;
+    const reply = method === "thread/name/set" ? nameSet ?? { result: {} } : { result: openedThread(method, name) };
     child.emit(`${JSON.stringify({ id: message.id, ...reply })}\n`);
   }));
   return requests;
@@ -44,6 +59,13 @@ test.each([
   const session = await codexSession(installation, { cwd: "/work", resume: "thread", name: "host name" });
   await session.dispose();
   expect(nameSets(requests)).toEqual(expected);
+});
+
+test("a fork gets the requested name even though codex copies the source thread's name", async () => {
+  const requests = server("copied from source");
+  const session = await codexSession(installation, { cwd: "/work", forkFrom: { sessionId: "source" }, name: "host name" });
+  await session.dispose();
+  expect(nameSets(requests)).toEqual([{ threadId: "thread", name: "host name" }]);
 });
 
 test("no name option sends no thread/name/set", async () => {

@@ -160,11 +160,13 @@ launch ([session name](../spec/runtime-matrix.md#session-name)).
 **Fork (mapped).** `SessionOptions.forkFrom: { sessionId }` launches
 `claude --resume <source> --fork-session --session-id <new id>` (CLI
 2.1.319): claude copies the source's active context into a new transcript
-under the id OAR chooses, and the first native frame is a
-`SessionStart:fork` hook under that id. The adapter records a `fork` session
-edge on the new stream's first root frame and runs the same private
-`initialize` and `get_usage` readbacks as a resume. Claude forks the whole
-saved conversation, so `forkFrom.through` is refused rather than dropped;
+under the id OAR chooses. The stream carries no lineage field; when
+SessionStart hooks are configured, the new transcript's first frames are a
+`SessionStart:fork` hook under that id, otherwise they start with
+`system/init`. The adapter records a `fork` session edge, naming the
+requested source, on the new stream's first root frame and runs the same
+private `initialize` and `get_usage` readbacks as a resume. Claude forks the
+whole saved conversation, so `forkFrom.through` is refused rather than dropped;
 `resume` and `forkFrom` are mutually exclusive. The new session keeps its
 own id, fresh observers, sequence numbers and queue. Session listing,
 history retrieval, rewind, and reset identity management remain **not
