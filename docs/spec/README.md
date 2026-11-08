@@ -106,6 +106,9 @@ contract on a real login; each runtime page states which live checks are verifie
   tier per adapter (`capabilities.attribution`);
 - `SessionOptions.resume` reopening the runtime-native conversation with a
   fresh stream starting at `seq` 0;
+- `SessionOptions.forkFrom` opening a new session from a runtime-native
+  conversation's saved history, with a new `Session.id` and a `fork` edge in
+  the graph ([session graph](session-graph-and-cursor.md));
 - `SessionOptions.effort` applied through each runtime's native channel and
   read back: a runtime that would run another level, or has no channel,
   refuses the open (contract comment on `SessionOptions.effort`; per-runtime

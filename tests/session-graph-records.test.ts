@@ -8,8 +8,8 @@ function report(kernel: SessionKernel, sessionId: string, usage: UsageReport, ag
   kernel.frame({ type: "fixture/usage", native: usage, events: [{ kind: "usage", usage }] }, { sessionId, agentPath });
 }
 
-function link(kernel: SessionKernel, parent: string, child: string): void {
-  const edge: SessionEdge = { parent, child, via: "tool_call" };
+function link(kernel: SessionKernel, parent: string, child: string, via: SessionEdge["via"] = "tool_call"): void {
+  const edge: SessionEdge = { parent, child, via };
   kernel.frame({ type: "fixture/lineage", native: edge, events: [kernel.link(edge)] });
 }
 
@@ -33,6 +33,14 @@ test("a graph is visible with its source frame, in live observers and a JSON rep
   const persisted = replay(kernel.records());
   expect(graphOf(persisted)).toEqual(kernel.graph());
   expect(kernel.records().flatMap((record) => eventsOf(record)).filter((event) => event.kind === "session_linked")).toHaveLength(2);
+});
+
+test("a fork edge is lineage like a tool_call edge, preserved through replay", () => {
+  const kernel = createSessionKernel("root");
+  link(kernel, "root", "forked", "fork");
+  expect(kernel.graph()).toEqual({ nodes: [{ id: "root" }, { id: "forked" }], edges: [{ parent: "root", child: "forked", via: "fork" }] });
+  const persisted = replay(kernel.records());
+  expect(graphOf(persisted)).toEqual(kernel.graph());
 });
 
 test("the live graph agrees with replay after every append and preserves earlier snapshots", () => {

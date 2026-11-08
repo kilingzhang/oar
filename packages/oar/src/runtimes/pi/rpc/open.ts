@@ -27,6 +27,7 @@ import { RuntimeFailureError } from "../../../contracts/runtime-failure-error.js
 export const piRpcRefusedSessionOptions: RefusedSessionOptions = {
   ...piRefusedSessionOptions,
   launchArgs: "OAR owns Pi's RPC startup arguments; arbitrary CLI flags are not supported",
+  forkFrom: "Pi's RPC interface exposes no verified conversation fork",
 };
 
 export function piRpcState(response: RpcResponse): RpcSessionState {

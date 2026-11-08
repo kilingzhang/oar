@@ -37,7 +37,11 @@ function spawnClaude(command: string, sessionId: string, options: SessionOptions
     "--input-format", "stream-json",
     "--output-format", "stream-json",
     "--verbose", "--replay-user-messages", "--include-partial-messages",
-    ...(options.resume === undefined ? ["--session-id", sessionId] : ["--resume", sessionId]),
+    ...(options.resume !== undefined
+      ? ["--resume", options.resume]
+      : (options.forkFrom !== undefined
+        ? ["--resume", options.forkFrom.sessionId, "--fork-session", "--session-id", sessionId]
+        : ["--session-id", sessionId])),
     // SessionOptions.name (#368) names a new session only: `--name` on a
     // resume replaces the name the session has, which may be the user's
     // ([env] claude 2.1.292: it reports the old one as session_title_changed

@@ -523,7 +523,7 @@ reading the message.
 
 `Runtime.refusedSessionOptions` declares, before any session opens, the
 `SessionOptions` a runtime refuses when given (`env`, `mcpServers`, `disallowedTools`, `launchArgs`, `additionalDirectories`: a
-non-empty one; `userConfiguration`: `"exclude"`; `goals`, `endTurnProcessesOnAbort`: `true`), each with that reason. The adapter checks the same map, so
+non-empty one; `forkFrom`: when given; `userConfiguration`: `"exclude"`; `goals`, `endTurnProcessesOnAbort`: `true`), each with that reason. The adapter checks the same map, so
 the declaration and the refusal cannot drift
 (`tests/refused-session-options.test.ts`). A host leaves a declared option
 out instead of naming runtimes. `outputSchema` is considered given even
@@ -544,19 +544,25 @@ while the session stays usable (in the host process, no process tree of its
 own to read). The why column gives the rest. `userConfiguration: "exclude"` refusals are explained
 in [user configuration](#user-configuration).
 
+`forkFrom` is refused wherever no native conversation fork is verified,
+either with the shared reason "This runtime interface exposes no verified
+native session fork" or a runtime-specific one (Cursor SDK, Pi Durable, the
+DSH bridge, OpenCode's ACP surface, and Pi's RPC surface). Claude, Codex and
+the in-process Pi SDK support it ([session fork](#session-fork)).
+
 | runtime | refuses | why |
 |---|---|---|
-| cursor | `systemPrompt`, `appendSystemPrompt`, `env`, `mcpServers`, `launchArgs`, `serviceTier`, `outputSchema`, `name`, `goals: true`, `endTurnProcessesOnAbort: true` | the SDK's local agent fails a run given a system prompt and has no append; it runs in the host process with no environment or command line of its own; its agent runs on Cursor's servers, and no run without a login or paid tokens shows it calling a tool of `Agent.create`'s `mcpServers` ([cursor](../runtimes/cursor.md#session-mcp-servers)) |
-| codebuddy | `appendSystemPrompt`, `serviceTier`, `additionalDirectories`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | no verified private prompt-append input; replacement uses a private file ([mapping](../runtimes/codebuddy.md)) |
-| kimi | `systemPrompt`, `appendSystemPrompt`, `disallowedTools`, `serviceTier`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | `kimi acp` has no per-session prompt input; its launcher does not forward the CLI's agent-profile flags, and has no session tool-denial overlay ([audit](../runtimes/kimi.md#models-instructions-and-context)) |
-| antigravity | `disallowedTools`, `systemPrompt`, `serviceTier`, `additionalDirectories`, `outputSchema`, `name`, `mcpServerCredentials`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | the CLI adapter has no verified system prompt replacement channel (append is supported) ([audit](../runtimes/antigravity.md#models-instructions-and-context)); it would store an entry's `env` and `headers` values in plain text in its conversation database ([antigravity](../runtimes/antigravity.md#session-mcp-servers)) |
-| grok | `disallowedTools`, `serviceTier`, `additionalDirectories`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | the top-level CLI denylist is not forwarded to `agent stdio`; replacing the selected agent profile is not a tool overlay |
-| opencode, both lines | `disallowedTools`, `serviceTier`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | agent permissions can override global denies; permission names do not consistently match tool names |
-| pi-durable | `systemPrompt`, `env`, `launchArgs`, `serviceTier`, `mcpServers`, `disallowedTools`, `additionalDirectories`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | native instructions append only; host-owned environment; no process arguments or verified per-conversation tier/MCP/tool-denial mapping |
+| cursor | `systemPrompt`, `appendSystemPrompt`, `env`, `mcpServers`, `launchArgs`, `forkFrom`, `serviceTier`, `outputSchema`, `name`, `goals: true`, `endTurnProcessesOnAbort: true` | the SDK's local agent fails a run given a system prompt and has no append; it runs in the host process with no environment or command line of its own; its agent runs on Cursor's servers, and no run without a login or paid tokens shows it calling a tool of `Agent.create`'s `mcpServers` ([cursor](../runtimes/cursor.md#session-mcp-servers)) |
+| codebuddy | `appendSystemPrompt`, `forkFrom`, `serviceTier`, `additionalDirectories`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | no verified private prompt-append input; replacement uses a private file ([mapping](../runtimes/codebuddy.md)) |
+| kimi | `systemPrompt`, `appendSystemPrompt`, `disallowedTools`, `forkFrom`, `serviceTier`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | `kimi acp` has no per-session prompt input; its launcher does not forward the CLI's agent-profile flags, and has no session tool-denial overlay ([audit](../runtimes/kimi.md#models-instructions-and-context)) |
+| antigravity | `disallowedTools`, `systemPrompt`, `forkFrom`, `serviceTier`, `additionalDirectories`, `outputSchema`, `name`, `mcpServerCredentials`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | the CLI adapter has no verified system prompt replacement channel (append is supported) ([audit](../runtimes/antigravity.md#models-instructions-and-context)); it would store an entry's `env` and `headers` values in plain text in its conversation database ([antigravity](../runtimes/antigravity.md#session-mcp-servers)) |
+| grok | `disallowedTools`, `forkFrom`, `serviceTier`, `additionalDirectories`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | the top-level CLI denylist is not forwarded to `agent stdio`; replacing the selected agent profile is not a tool overlay |
+| opencode, both lines | `disallowedTools`, `forkFrom`, `serviceTier`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | agent permissions can override global denies; permission names do not consistently match tool names |
+| pi-durable | `systemPrompt`, `env`, `launchArgs`, `forkFrom`, `serviceTier`, `mcpServers`, `disallowedTools`, `additionalDirectories`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | native instructions append only; host-owned environment; no process arguments or verified per-conversation tier/MCP/tool-denial mapping |
 | pi | `launchArgs`, `serviceTier`, `additionalDirectories`, `outputSchema`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | it runs in the host process through its SDK, with no command line |
-| qwen | `serviceTier`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | no verified tier, structured-output, session-name or user-configuration exclusion channel |
-| dsh | `systemPrompt`, `appendSystemPrompt`, `mcpServerCredentials`, `disallowedTools`, `launchArgs`, `serviceTier`, `additionalDirectories`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | MCP credentials have no verified persistence boundary; the other options remain unverified through the bridge ([mapping](../runtimes/dsh.md#session-options)) |
-| qoder | `serviceTier`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | no verified tier, structured-output, session-name or user-configuration exclusion channel |
+| qwen | `forkFrom`, `serviceTier`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | no verified tier, structured-output, session-name or user-configuration exclusion channel |
+| dsh | `systemPrompt`, `appendSystemPrompt`, `mcpServerCredentials`, `disallowedTools`, `launchArgs`, `forkFrom`, `serviceTier`, `additionalDirectories`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | MCP credentials have no verified persistence boundary; the other options remain unverified through the bridge ([mapping](../runtimes/dsh.md#session-options)) |
+| qoder | `forkFrom`, `serviceTier`, `outputSchema`, `name`, `userConfiguration: "exclude"`, `goals: true`, `endTurnProcessesOnAbort: true` | no verified tier, structured-output, session-name or user-configuration exclusion channel |
 | codex | `userConfiguration: "exclude"`; `endTurnProcessesOnAbort: true` only with shared placement | temporary clean homes break shared history paths after cleanup ([evidence](../runtimes/codex.md#user-configuration)); a shared app-server's process table does not say which session's turn started a process |
 | claude | `goals: true`, `endTurnProcessesOnAbort: true` | no structured native goal controls on the chosen transport; other value-specific refusals are described on its runtime page |
 
@@ -712,6 +718,33 @@ saved value, including one supplied on a previous resume. A
 [registry-wide test](../../tests/resumed-session-options.test.ts) fixes the
 measured runtime/option inventory and rejects overlap with refused options.
 A vendor behavior change therefore fails the declared contract.
+
+## Session fork
+
+`SessionOptions.forkFrom: { sessionId, through? }` opens a new session from
+the saved conversation of `sessionId`, under an id the runtime assigns or
+OAR chooses. It is mutually exclusive with `resume`: a fork is a new
+session, not a reopen of the source. `Session.id` is the fork's new native
+id, and the new stream starts at seq 0 with a `fork` edge in the session
+graph. Other open options apply to the fork as to a new session; a Pi fork
+copies the source's session name, and a requested `name` replaces it.
+
+| runtime | native call | new identity | lineage evidence | `through` |
+|---|---|---|---|---|
+| claude | `--resume <source> --fork-session --session-id <new>` (CLI 2.1.319) | the UUID OAR passes | the new `SessionStart:fork` frame under that id | refused: claude forks the whole saved conversation |
+| codex (app-server) | `thread/fork { threadId, lastTurnId?, excludeTurns: true, cwd, … }` (0.165.0) | the reply's `thread.id` | the reply's `thread.forkedFromId` | `lastTurnId`, i.e. fork through that turn |
+| pi (SDK) | `SessionManager.forkFrom(sourcePath, cwd, sessionDir)` (1.5.0) | the new session file's header id | that header's `parentSession` naming the source file | refused: pi forks the whole saved conversation |
+
+`through` is a runtime-native turn anchor and is refused where the runtime
+offers no such selection rather than silently forking everything. A fork
+source that does not exist is the same `SessionNotFoundError` as a missing
+resume ([missing resume targets](#missing-resume-targets)); codex persists a
+thread only after its first turn, so a thread with no rollout cannot be
+forked ([session identity](../runtimes/codex.md#six-questions)). Claude's
+fork copies the source's active context, not its whole transcript; Codex
+copies the thread's saved history; Pi copies the source file's entries into
+a new file. The rest of the runtimes refuse `forkFrom`
+([refusals](#refused-session-options)).
 
 ## Host-served tools
 

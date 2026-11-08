@@ -34,7 +34,7 @@ information is not stored twice.
 
 ```ts
 interface SessionNode { id: string; }
-interface SessionEdge { parent: string; child: string; via: "tool_call"; }
+interface SessionEdge { parent: string; child: string; via: "tool_call" | "fork"; }
 ```
 
 ### Example 5 · What enters the graph, what does not
@@ -42,15 +42,21 @@ interface SessionEdge { parent: string; child: string; via: "tool_call"; }
 ```
 grok:   sess-A ──tool_call──▶ child session sess-B   (session derivation; child has its own sessionId → in the graph)
 codex:  thread-A ──tool_call──▶ child thread-B       (same shape; the child's records carry sessionId = thread-B, agentPath [])
+codex:  thread-A ──fork──▶ thread-B                  (thread/fork; the reply's forkedFromId names A)
 claude: root ──tool_call(call_3)──▶ subagent "a1"    (agent parent/child → NOT in the graph; expressed by agentPath)
 ```
 
-Edges are emitted only when a runtime reports a tool call spawning a child
-session. `SessionOptions.resume` reopens the same node with a fresh stream
-at seq 0, so it is not an edge. Host continuity between distinct sessions
-(external compaction) is never an edge either: the new session's first
-prompt carries the summary as its input, and nothing links the two
-sessions in the graph.
+Edges come from native evidence of a new session derived from another: a
+tool call that spawns a child session, or a fork the runtime reports.
+`SessionOptions.forkFrom` opens a new session with a new native id whose
+history comes from the source, and the runtime's own evidence places a
+`fork` edge on the new stream's first root frame (Claude's
+`SessionStart:fork` frame under the new id, Codex's `thread.forkedFromId`,
+Pi's new session header `parentSession`). `SessionOptions.resume` reopens
+the same node with a fresh stream at seq 0, so it is not an edge. Host
+continuity between distinct sessions (external compaction) is never an edge
+either: the new session's first prompt carries the summary as its input,
+and nothing links the two sessions in the graph.
 
 A node's records are read by its own `sessionId`; the Session folds never
 fold a child node's records into the root
@@ -59,10 +65,10 @@ fold a child node's records into the root
 ## The graph is in the records
 
 The native frame establishing a pair carries
-`session_linked { parent, child, via: "tool_call" }` in its events. Codex
-collaboration items, ACP lineage notifications and OpenCode v2 child
-attribution use this same event; the original native payload stays on that
-frame. Each edge is emitted once per stream, on the first frame naming
+`session_linked { parent, child, via: "tool_call" | "fork" }` in its events.
+Codex collaboration items, ACP lineage notifications, OpenCode v2 child
+attribution and the three native fork channels use this same event; the
+original native payload stays on that frame. Each edge is emitted once per stream, on the first frame naming
 that parent/child pair. Later frames retain their native payload and other
 events but do not repeat the edge. A resume opens a fresh stream, so its
 first native report of the pair emits the edge again. Cursor replay returns

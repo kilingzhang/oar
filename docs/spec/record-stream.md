@@ -680,7 +680,7 @@ interface FrameBody {
 //   input_handled {requestId, inputId?} |
 //   input_dropped {requestId?, inputId?, reason: "turn_interrupted"} |
 //   input_dropped {requestId?, inputId?, reason: "runtime_refused", failure?: FailureClass, message?: string} (at least one ID; conversation.md) |
-//   session_linked {parent, child, via: "tool_call"} |
+//   session_linked {parent, child, via: "tool_call" | "fork"} |
 //   text_delta {text, messageId?, phase?} | reasoning {content, messageId?} |
 //   tool_call_started {callId, tool, input?, server?, toolName?} |
 //   tool_call_input {callId, input} |
@@ -911,8 +911,9 @@ type EventBody = RuntimeEventBody | ControlEventBody;
 
 Which runtimes say which kinds (runtime pages hold the evidence):
 
-- `session_linked`: Codex collaboration items, ACP native lineage and
-  OpenCode v2 child attribution. The source frame carries both endpoints;
+- `session_linked`: Codex collaboration items, ACP native lineage,
+  OpenCode v2 child attribution, and the native fork evidence of Claude,
+  Codex and Pi (`via: "fork"`). The source frame carries both endpoints;
   `graphOf` deduplicates repeated edges without changing the records.
 
 - `turn_active`: codex `turn/started`, dsh's native inbox claim or empty

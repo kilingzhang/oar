@@ -73,7 +73,7 @@ export interface CodexProjectionState {
 
 /** The projection of a Session opened by `opened`: a resume awaits codex's re-reported token total. */
 export function initialCodexProjection(rootThreadId: string, opened: CodexOpenMethod = "thread/start"): CodexProjectionState {
-  return { inputs: new Map(), messages: new Map(), rootThreadId, lastErrorDetail: null, retries: new Map(), compacting: false, subagents: new Map(), tokenBaseline: initialTokenBaseline(opened === "thread/resume") };
+  return { inputs: new Map(), messages: new Map(), rootThreadId, lastErrorDetail: null, retries: new Map(), compacting: false, subagents: new Map(), tokenBaseline: initialTokenBaseline(opened !== "thread/start") };
 }
 
 const COMPACTION_ITEM_TYPE = "contextCompaction";

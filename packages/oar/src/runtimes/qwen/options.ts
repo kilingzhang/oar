@@ -8,6 +8,7 @@ export const qwenRefusedSessionOptions: RefusedSessionOptions = {
   serviceTier: "Qwen's stream-json interface does not expose a service-tier setting",
   outputSchema: "Qwen rejects --json-schema with its long-lived stream-json input protocol",
   name: "Qwen's stream-json interface does not expose a session-name readback",
+  forkFrom: "This runtime interface exposes no verified native session fork",
 };
 
 /** A second protocol, identity, or approval selector would invalidate the session OAR opens. */

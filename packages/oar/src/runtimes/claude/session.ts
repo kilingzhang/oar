@@ -1,6 +1,7 @@
 import { claudeCompaction, CLAUDE_COMPACTION_BUSY } from "./compaction.js";
 import { randomUUID } from "node:crypto";
 import type { StartSession } from "../../contracts/session.js";
+import { UnsupportedOptionError } from "../../contracts/errors.js";
 import { withSessionCredentials } from "../../shared/session-credentials.js";
 import { streamJsonSession } from "../../shared/stream-json/session.js";
 import { claudeOpenSettings } from "./open-settings.js";
@@ -13,6 +14,15 @@ export const claudeSession: StartSession = withSessionCredentials(async (install
   if (installation.via !== "executable") {
     throw new Error("The claude session adapter needs an executable installation");
   }
+  if (options.resume !== undefined && options.forkFrom !== undefined) {
+    throw new UnsupportedOptionError("forkFrom", "forkFrom and resume are mutually exclusive");
+  }
+  if (options.forkFrom?.through !== undefined) {
+    throw new UnsupportedOptionError("forkFrom", "claude forks the whole saved conversation; forkFrom.through is not supported");
+  }
+  // A fork is a new native id whose history comes from the source; usage and
+  // copied history read back like a resume.
+  const reopened = options.resume !== undefined || options.forkFrom !== undefined;
   const sessionId = options.resume ?? randomUUID();
   const child = await launchClaude(installation.command, sessionId, options);
   const readback = claudeOpenSettings(child);
@@ -20,7 +30,10 @@ export const claudeSession: StartSession = withSessionCredentials(async (install
   const compaction = claudeCompaction(child);
   return streamJsonSession(child, sessionId, credentials, {
     projection: claudeProjectionProfile,
-    initial: options.resume === undefined ? initialClaudeProjection : resumedClaudeProjection,
+    ...(options.forkFrom === undefined ? {} : {
+      openLinks: [{ parent: options.forkFrom.sessionId, child: sessionId, via: "fork" as const }],
+    }),
+    initial: reopened ? resumedClaudeProjection : initialClaudeProjection,
     capabilities: { queue: { durable: false }, attribution: "attributed", images: true },
     steer: true,
     stopTask: (taskId) => ({ subtype: "stop_task", task_id: taskId }),
@@ -29,7 +42,7 @@ export const claudeSession: StartSession = withSessionCredentials(async (install
     consume: (message) => readback.consume(message) || contextBreakdown.consume(message) || compaction.consume(message),
     open: async (projection) => {
       await readback.confirm(options);
-      if (options.resume !== undefined) {
+      if (reopened) {
         projection.replace(claudeUsageBaselined(projection.current(), await readback.usageBaseline()));
       }
     },

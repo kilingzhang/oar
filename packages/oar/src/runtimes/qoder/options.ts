@@ -8,6 +8,7 @@ export const qoderRefusedSessionOptions: RefusedSessionOptions = {
   outputSchema: "Qoder has no verified structured-output option for long-lived sessions",
   userConfiguration: "Qoder has no verified way to exclude user configuration while preserving native credentials and history",
   name: "Qoder's session-name persistence has not been verified",
+  forkFrom: "This runtime interface exposes no verified native session fork",
 };
 export function checkQoderLaunchArgs(args: readonly string[] | undefined): void {
   const managed = new Set(["--print", "-p", "--input-format", "-f", "--output-format", "-o", "--session-id", "--resume", "-r", "--continue", "-c",

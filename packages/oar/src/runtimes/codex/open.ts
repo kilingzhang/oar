@@ -5,6 +5,7 @@ import { validateCodexToolDenials } from "./tool-denials.js";
 import type { McpServer, RuntimeEventBody, SessionOptions } from "../../contracts/session.js";
 import { asRecord, type JsonRecord } from "../../shared/json.js";
 import { checkMcpServerNames, givenMcpServers, isHttpMcpServer } from "../../shared/mcp-servers.js";
+import { UnsupportedOptionError } from "../../contracts/errors.js";
 import { codexRefusedSessionOptions } from "./options.js";
 import { checkSessionName, refuseSessionOptions } from "../../shared/session-options.js";
 
@@ -14,7 +15,7 @@ import { checkSessionName, refuseSessionOptions } from "../../shared/session-opt
  * mapping lives in session.ts; this is the open-time policy it wraps.
  */
 
-export type CodexOpenMethod = "thread/start" | "thread/resume";
+export type CodexOpenMethod = "thread/start" | "thread/resume" | "thread/fork";
 
 /** The names codex starts an MCP server under; any other fails that server's startup after the thread opened ([env] 0.160.1). */
 const CODEX_MCP_SERVER_NAME = /^[\w:@/.-]+$/u;
@@ -65,6 +66,9 @@ export function codexThreadOpen(options: SessionOptions): { readonly method: Cod
   refuseSessionOptions(codexRefusedSessionOptions, options);
   validateCodexToolDenials(options);
   checkSessionName(options);
+  if (options.resume !== undefined && options.forkFrom !== undefined) {
+    throw new UnsupportedOptionError("forkFrom", "forkFrom and resume are mutually exclusive");
+  }
   const { redact } = sessionCredentialRedactor(options);
   // System prompt seams (probed 2026-08-24 via the aimock journal):
   // baseInstructions REPLACES codex's base prompt; developerInstructions
@@ -95,6 +99,24 @@ export function codexThreadOpen(options: SessionOptions): { readonly method: Cod
   const modelParams = options.model === undefined ? {} : { model: options.model };
   const roots = workspaceRoots(options);
   const directoryParams = roots === null ? {} : { runtimeWorkspaceRoots: roots };
+  if (options.forkFrom !== undefined) {
+    return {
+      method: "thread/fork",
+      redact,
+      params: {
+        threadId: options.forkFrom.sessionId,
+        ...(options.forkFrom.through === undefined ? {} : { lastTurnId: options.forkFrom.through }),
+        excludeTurns: true,
+        cwd: options.cwd,
+        ...directoryParams,
+        ...modelParams,
+        ...tierParams,
+        approvalPolicy: "never",
+        ...instructionParams,
+        ...configParams({ ...effortConfig, ...mcpConfig }),
+      },
+    };
+  }
   if (options.resume === undefined) {
     return {
       method: "thread/start",
@@ -146,7 +168,7 @@ export function codexThreadName(method: CodexOpenMethod, options: SessionOptions
   if (options.name === undefined) {
     return null;
   }
-  const current = method === "thread/resume" ? asRecord(reply.thread)?.name : undefined;
+  const current = method === "thread/start" ? undefined : asRecord(reply.thread)?.name;
   return typeof current === "string" && current.length > 0 ? null : options.name;
 }
 

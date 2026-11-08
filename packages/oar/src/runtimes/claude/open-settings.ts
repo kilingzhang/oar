@@ -13,7 +13,7 @@ import { claudeUsageBaseline, type ClaudeUsageBaseline } from "./token-usage.js"
 import { ClaudeOpenDeadline, claudeOpenLimits, type ClaudeOpenLimits } from "./open-deadline.js";
 
 type Method = "get_settings" | "initialize" | "get_usage";
-type Option = "effort" | "serviceTier" | "resume";
+type Option = "effort" | "serviceTier" | "resume" | "fork";
 
 function failedInitialization(message: JsonRecord): boolean {
   return message.type === "result" && message.subtype === "error_during_execution";
@@ -29,7 +29,7 @@ function refusalFor(answer: JsonRecord | Error, option: Option, requested: strin
   if (option === "serviceTier") { return claudeServiceTierRefusal(requested, answer); }
   const response = asRecord(answer.response);
   if (response?.subtype !== "success") {
-    return `claude could not resume ${requested} (initialize: ${typeof response?.error === "string" ? response.error : "no success answer"})`;
+    return `claude could not ${option === "fork" ? "fork from" : "resume"} ${requested} (initialize: ${typeof response?.error === "string" ? response.error : "no success answer"})`;
   }
   return options.serviceTier === undefined ? null : claudeServiceTierRefusal(options.serviceTier, answer);
 }
@@ -72,7 +72,7 @@ export function claudeOpenSettings(child: ClaudeProcess, limits: ClaudeOpenLimit
   let opening = true;
   const exitError = (method: Method): Error => new Error(`claude exited (code ${String(lifetime.code)}) before answering ${method}`);
   const confirm = async (method: Method, option: Option, options: SessionOptions): Promise<void> => {
-    const requested = options[option];
+    const requested = option === "fork" ? options.forkFrom?.sessionId : options[option];
     if (requested === undefined) { return; }
     const { redact } = sessionCredentialRedactor(options);
     const { promise, resolve } = Promise.withResolvers<JsonRecord | Error>();
@@ -91,7 +91,7 @@ export function claudeOpenSettings(child: ClaudeProcess, limits: ClaudeOpenLimit
         const cause = native === undefined ? undefined : nativeErrorCause(method, native, redact);
         // Only a missing-resume result that won the initialize readback.
         // Prose is the last resort, pinned by claude-missing-resume.json.
-        if (option === "resume" && method === "initialize" && native !== undefined && failedInitialization(native)
+        if ((option === "resume" || option === "fork") && method === "initialize" && native !== undefined && failedInitialization(native)
           && Array.isArray(native.errors) && typeof native.errors[0] === "string"
           && native.errors[0].startsWith("No conversation found with session ID") && cause !== undefined) {
           throw new SessionNotFoundError(requested, redact(refusal), cause);
@@ -141,9 +141,11 @@ export function claudeOpenSettings(child: ClaudeProcess, limits: ClaudeOpenLimit
     },
     async confirm(options) {
       try {
-        // Missing resumes report a result error and exit without an initialize
-        // answer. Confirm that handshake before any settings readback.
+        // Missing resumes and missing fork sources report a result error and
+        // exit without an initialize answer. Confirm that handshake before any
+        // settings readback.
         if (options.resume !== undefined) { await confirm("initialize", "resume", options); }
+        else if (options.forkFrom !== undefined) { await confirm("initialize", "fork", options); }
         if (options.effort !== undefined) { await confirm("get_settings", "effort", options); }
         if (options.serviceTier !== undefined && options.resume === undefined) { await confirm("initialize", "serviceTier", options); }
       } finally {

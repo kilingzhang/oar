@@ -2,9 +2,10 @@ import { UnsupportedOptionError } from "../../contracts/errors.js";
 
 /**
  * claude flags OAR sets itself, which a host's `launchArgs` would contradict
- * (#336): with `--continue` claude exits next to OAR's `--session-id`; after
- * `--fork-session` claude runs under a new id while `Session.id` keeps the
- * old one. Permission targets require an answer API that OAR does not have.
+ * (#336): with `--continue` claude exits next to OAR's `--session-id`; a
+ * bare `--fork-session` runs claude under a new id that OAR must own, which
+ * only `SessionOptions.forkFrom` arranges. Permission targets require an
+ * answer API that OAR does not have.
  * Each maps to the reason the open is refused. A short alias is checked as
  * a whole argument, a long flag also in its `--flag=value` form.
  */
@@ -14,7 +15,7 @@ const MANAGED: ReadonlyMap<string, string> = new Map([
   ["--resume", "use SessionOptions.resume"],
   ["-r", "use SessionOptions.resume"],
   ["--session-id", "OAR assigns the session id"],
-  ["--fork-session", "a fork runs under a new native id that Session.id would not report"],
+  ["--fork-session", "use SessionOptions.forkFrom"],
   ["--permission-prompt-tool", "OAR has no interface for answering permission requests"],
   ["--print", "OAR drives claude in print mode over stream-json already"],
   ["-p", "OAR drives claude in print mode over stream-json already"],

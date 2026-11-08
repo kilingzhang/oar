@@ -24,6 +24,7 @@ export const piDurableRefusedSessionOptions: RefusedSessionOptions = {
   serviceTier: "pi-durable exposes no per-conversation service tier",
   mcpServers: "pi-durable has no verified per-conversation MCP attachment channel",
   disallowedTools: "pi-durable tool filtering has not been verified through this adapter",
+  forkFrom: "pi-durable exposes no verified native conversation fork",
 };
 
 function conversationId(value: number): value is ConversationId {

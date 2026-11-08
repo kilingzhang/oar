@@ -23,6 +23,19 @@ export type McpServer =
   | { readonly name: string; readonly type: "http"; readonly url: string; readonly headers?: Readonly<Record<string, string>> };
 
 /**
+ * The native conversation a fork starts from. `sessionId` is a previous
+ * `Session.id`, which each runtime's own fork operation understands. `through`
+ * is the native turn, message or entry id to fork through (inclusive);
+ * omitted means the whole conversation. Codex supports `through` as
+ * `thread/fork`'s `lastTurnId`; claude and pi refuse it because their native
+ * fork has no verified point-in-time selection.
+ */
+export interface SessionForkSource {
+  readonly sessionId: string;
+  readonly through?: string;
+}
+
+/**
  * How a session opens. What a runtime cannot honor is refused, never
  * dropped: `session()` rejects with an `UnsupportedOptionError` naming the
  * option rather than open a session that runs without it. A host that must
@@ -153,6 +166,23 @@ export interface SessionOptions {
    * UnsupportedOptionError. See docs/spec/runtime-matrix.md#missing-resume-targets.
    */
   readonly resume?: string;
+  /**
+   * Fork a NEW session from the native conversation `sessionId` instead of
+   * resuming it. Mutually exclusive with `resume`.
+   *
+   * The fork is a Session of its own with a new `Session.id`; the source is
+   * not continued, and the runtime's own fork operation decides what history
+   * the new conversation carries. The adapter records the new session as a
+   * child of `sessionId` with a `fork` edge in the session graph
+   * (`session_linked`), once, on the new stream's first root frame.
+   *
+   * Options apply to the fork as they do to a new session, with each
+   * runtime's native semantics for the copied history. Supported by claude,
+   * codex and in-process pi; other runtimes refuse it
+   * (`Runtime.refusedSessionOptions`). A runtime that supports a full-history
+   * fork but not `through` refuses that value at open.
+   */
+  readonly forkFrom?: SessionForkSource;
   /** Environment changes for the processes THIS session spawns: a string sets the variable (including an empty string); null removes it from the inherited environment. The host environment is never changed. Subprocess runtimes: the runtime process itself (tools inherit). In-process runtimes: only the agent's tool subprocesses; provider config needs the runtime's native channel there. CAVEAT for PATH-like entries: a runtime that runs tools through a login shell (codex: zsh/bash -lc) lets profile scripts reorder or rebuild PATH (probed: codex demotes injected entries on Linux and macOS path_helper/.zprofile can drop them). Injected CLIs should be invoked by ABSOLUTE path. Pi refuses removals combined with stdio mcpServers because its MCP transport re-inherits the host environment. Refused when non-empty by cursor, whose tools run in the host process with no environment of their own: `session()` rejects with `UnsupportedOptionError` (`Runtime.refusedSessionOptions`, docs/spec/runtime-matrix.md#refused-session-options).
    *
    * Credential-like names with non-path values of at least eight characters,

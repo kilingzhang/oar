@@ -9,7 +9,8 @@ export interface SessionNode {
 export interface SessionEdge {
   readonly parent: string;
   readonly child: string;
-  readonly via: "tool_call";
+  /** `tool_call`: the parent runtime spawned the child session. `fork`: the child is a fork of the parent conversation. */
+  readonly via: "tool_call" | "fork";
 }
 
 export interface SessionGraph {

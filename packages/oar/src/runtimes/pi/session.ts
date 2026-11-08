@@ -17,6 +17,7 @@ import {
 } from "./projection.js";
 import { disposePiAgentSession } from "./lifecycle.js";
 import { openPiAgentSession, piEffectiveModel } from "./open.js";
+import { piSessionOpenedBody } from "./session-opened.js";
 
 /** pi's ImageContent: base64 data and its type. */
 const piImages = (images: readonly LoadedImage[]): { type: "image"; data: string; mimeType: string }[] =>
@@ -194,16 +195,8 @@ export const createPiSession = (project: PiProjectOptions = {}): StartSession =>
 
   queueBarrier.observeRun();
   const openedModel = piEffectiveModel(piAgentSession);
-  if (openedModel !== null) {
-    // The SDK's own report of the model and thinking level in effect at open,
-    // captured as the runtime's word (never the request echoed: the mismatch
-    // checks in open.ts already rejected a request pi did not apply).
-    const { thinkingLevel } = piAgentSession;
-    kernel.frame({
-      type: "pi/session_opened",
-      native: { sessionId: piAgentSession.sessionId, model: openedModel, thinkingLevel },
-      events: [{ kind: "model", model: openedModel }, { kind: "effort", effort: thinkingLevel }],
-    });
+  if (openedModel !== null || options.forkFrom !== undefined) {
+    kernel.frame(piSessionOpenedBody(kernel, piAgentSession, options.forkFrom, openedModel));
   }
 
   const capabilities = { queue: { durable: false }, attribution: "none", images: true } as const;

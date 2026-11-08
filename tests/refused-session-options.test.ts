@@ -12,6 +12,7 @@ import { allRuntimes } from "../sea-trial/harness/runtimes.js";
 const given: Readonly<Record<RefusableSessionOption, Partial<SessionOptions>>> = {
   goals: { goals: true },
   endTurnProcessesOnAbort: { endTurnProcessesOnAbort: true },
+  forkFrom: { forkFrom: { sessionId: "parent-session" } },
   userConfiguration: { userConfiguration: "exclude" },
   additionalDirectories: { additionalDirectories: ["/extra"] },
   outputSchema: { outputSchema: {} },
@@ -45,7 +46,7 @@ test("every declared refusal is what session() rejects with", async () => {
   const declaring = allRuntimes.list().filter((runtime) => runtime.refusedSessionOptions !== undefined);
   assert.deepEqual(declaring.map((runtime) => runtime.id).toSorted(), ["antigravity", "claude", "codebuddy", "codex", "cursor", "dsh", "grok", "kimi", "opencode", "pi", "qoder", "qwen"]);
   for (const runtime of declaring) {
-    const keys = (["systemPrompt", "appendSystemPrompt", "env", "mcpServers", "mcpServerCredentials", "disallowedTools", "launchArgs", "serviceTier", "additionalDirectories", "outputSchema", "name", "userConfiguration", "goals", "endTurnProcessesOnAbort"] as const).filter((key) => runtime.refusedSessionOptions?.[key] !== undefined);
+    const keys = (["systemPrompt", "appendSystemPrompt", "env", "mcpServers", "mcpServerCredentials", "disallowedTools", "launchArgs", "serviceTier", "additionalDirectories", "outputSchema", "name", "userConfiguration", "goals", "endTurnProcessesOnAbort", "forkFrom"] as const).filter((key) => runtime.refusedSessionOptions?.[key] !== undefined);
     for (const key of keys) {
       const opening = runtime.session(nowhere(runtime.id), { cwd: "/tmp", ...given[key] });
       // oxlint-disable-next-line no-await-in-loop -- one open at a time keeps the failure attributable.
@@ -59,18 +60,18 @@ test("every declared refusal is what session() rejects with", async () => {
 test("the declarations say which options each runtime refuses", () => {
   const refused = Object.fromEntries(allRuntimes.list().map((runtime) => [runtime.id, Object.keys(runtime.refusedSessionOptions ?? {}).toSorted()]));
   assert.deepEqual(refused, {
-    antigravity: ["additionalDirectories", "disallowedTools", "endTurnProcessesOnAbort", "goals", "mcpServerCredentials", "name", "outputSchema", "serviceTier", "systemPrompt", "userConfiguration"],
+    antigravity: ["additionalDirectories", "disallowedTools", "endTurnProcessesOnAbort", "forkFrom", "goals", "mcpServerCredentials", "name", "outputSchema", "serviceTier", "systemPrompt", "userConfiguration"],
     claude: ["endTurnProcessesOnAbort", "goals"],
-    codebuddy: ["additionalDirectories", "appendSystemPrompt", "endTurnProcessesOnAbort", "goals", "name", "outputSchema", "serviceTier", "userConfiguration"],
+    codebuddy: ["additionalDirectories", "appendSystemPrompt", "endTurnProcessesOnAbort", "forkFrom", "goals", "name", "outputSchema", "serviceTier", "userConfiguration"],
     codex: ["userConfiguration"],
-    cursor: ["appendSystemPrompt", "endTurnProcessesOnAbort", "env", "goals", "launchArgs", "mcpServers", "name", "outputSchema", "serviceTier", "systemPrompt"],
-    dsh: ["additionalDirectories", "appendSystemPrompt", "disallowedTools", "endTurnProcessesOnAbort", "goals", "launchArgs", "mcpServerCredentials", "name", "outputSchema", "serviceTier", "systemPrompt", "userConfiguration"],
-    grok: ["additionalDirectories", "disallowedTools", "endTurnProcessesOnAbort", "goals", "name", "serviceTier", "userConfiguration"],
-    kimi: ["appendSystemPrompt", "disallowedTools", "endTurnProcessesOnAbort", "goals", "name", "outputSchema", "serviceTier", "systemPrompt", "userConfiguration"],
-    opencode: ["disallowedTools", "endTurnProcessesOnAbort", "goals", "name", "outputSchema", "serviceTier", "userConfiguration"],
+    cursor: ["appendSystemPrompt", "endTurnProcessesOnAbort", "env", "forkFrom", "goals", "launchArgs", "mcpServers", "name", "outputSchema", "serviceTier", "systemPrompt"],
+    dsh: ["additionalDirectories", "appendSystemPrompt", "disallowedTools", "endTurnProcessesOnAbort", "forkFrom", "goals", "launchArgs", "mcpServerCredentials", "name", "outputSchema", "serviceTier", "systemPrompt", "userConfiguration"],
+    grok: ["additionalDirectories", "disallowedTools", "endTurnProcessesOnAbort", "forkFrom", "goals", "name", "serviceTier", "userConfiguration"],
+    kimi: ["appendSystemPrompt", "disallowedTools", "endTurnProcessesOnAbort", "forkFrom", "goals", "name", "outputSchema", "serviceTier", "systemPrompt", "userConfiguration"],
+    opencode: ["disallowedTools", "endTurnProcessesOnAbort", "forkFrom", "goals", "name", "outputSchema", "serviceTier", "userConfiguration"],
     pi: ["additionalDirectories", "endTurnProcessesOnAbort", "goals", "launchArgs", "outputSchema", "serviceTier", "userConfiguration"],
-    qoder: ["endTurnProcessesOnAbort", "goals", "name", "outputSchema", "serviceTier", "userConfiguration"],
-    qwen: ["endTurnProcessesOnAbort", "goals", "name", "outputSchema", "serviceTier", "userConfiguration"],
+    qoder: ["endTurnProcessesOnAbort", "forkFrom", "goals", "name", "outputSchema", "serviceTier", "userConfiguration"],
+    qwen: ["endTurnProcessesOnAbort", "forkFrom", "goals", "name", "outputSchema", "serviceTier", "userConfiguration"],
   });
 });
 

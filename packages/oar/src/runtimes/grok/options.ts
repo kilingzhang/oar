@@ -10,4 +10,5 @@ export const grokRefusedSessionOptions: RefusedSessionOptions = {
   serviceTier: "grok exposes no verified per-session service-tier setting and readback",
   name: "grok exposes no verified session name setting",
   disallowedTools: "grok agent stdio does not forward the CLI tool denylist; supplying an agent profile would replace the user's selected harness rather than overlay its tools",
+  forkFrom: "This runtime interface exposes no verified native session fork",
 };

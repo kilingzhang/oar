@@ -35,7 +35,7 @@ export function sessionOptionGiven(options: SessionOptions, key: RefusableSessio
  */
 export function refuseSessionOptions(refused: RefusedSessionOptions, options: SessionOptions): void {
   checkRetainedBytes(options.retainedBytes);
-  for (const key of ["systemPrompt", "appendSystemPrompt", "env", "mcpServers", "mcpServerCredentials", "disallowedTools", "launchArgs", "serviceTier", "additionalDirectories", "outputSchema", "name", "userConfiguration", "goals", "endTurnProcessesOnAbort"] as const) {
+  for (const key of ["systemPrompt", "appendSystemPrompt", "env", "mcpServers", "mcpServerCredentials", "disallowedTools", "launchArgs", "serviceTier", "additionalDirectories", "outputSchema", "name", "userConfiguration", "goals", "endTurnProcessesOnAbort", "forkFrom"] as const) {
     const reason = refused[key];
     if (reason === undefined || !sessionOptionGiven(options, key)) {
       continue;

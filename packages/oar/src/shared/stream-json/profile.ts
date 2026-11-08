@@ -1,5 +1,5 @@
 import type { CompactionOperation } from "../manual-compaction.js";
-import type { RuntimeEventBody, TurnOutcome, SessionCapabilities, Session, FrameBody, RequestRecord, ResponseBody } from "../../contracts/session.js";
+import type { RuntimeEventBody, TurnOutcome, SessionCapabilities, Session, SessionEdge, FrameBody, RequestRecord, ResponseBody } from "../../contracts/session.js";
 import type { LoadedImage } from "../input-images.js";
 import type { JsonRecord } from "../json.js";
 import type { StreamJsonProjectionState } from "./state.js";
@@ -47,6 +47,12 @@ export interface StreamJsonSessionProfile<S extends StreamJsonProjectionState> {
   readonly compaction?: { readonly busyReason: string; readonly settledBy?: "native_response"; readonly responseTo?: (message: JsonRecord) => string | undefined; create(send: (request: RequestRecord) => ResponseBody): CompactionOperation };
   readonly userMessage?: (text: string, inputId?: string, images?: readonly LoadedImage[]) => string;
   readonly cancelQueuedCapability?: string;
+  /**
+   * Lineage to attach to this stream's first root frame. A fork's native
+   * operation is the evidence; the runtime's first frame carries the edge so
+   * the graph is still built from frames alone.
+   */
+  readonly openLinks?: readonly SessionEdge[];
   /** Private configuration/account responses must be consumed before public projection. */
   readonly consume: (message: JsonRecord) => boolean;
   readonly open: (projection: { current(): S; replace(state: S): void; report(body: FrameBody): void }) => Promise<void>;

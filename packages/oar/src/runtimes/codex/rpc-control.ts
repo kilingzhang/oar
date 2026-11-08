@@ -104,7 +104,7 @@ function unavailableReason(message: string): SessionUnavailableReason | null {
  */
 function resumeError(method: string, resumeId: string | undefined, cause: JsonRecord | null, message: string): Error | null {
   const native = asRecord(cause?.native);
-  if (method !== "thread/resume" || resumeId === undefined || cause?.method !== method || native?.code !== -32_600 || typeof native.message !== "string") {
+  if ((method !== "thread/resume" && method !== "thread/fork") || resumeId === undefined || cause?.method !== method || native?.code !== -32_600 || typeof native.message !== "string") {
     return null;
   }
   const text = `codex ${method} failed: ${message}`;
@@ -121,7 +121,7 @@ function resumeError(method: string, resumeId: string | undefined, cause: JsonRe
  * not). The session opener owns process cleanup on every failure.
  */
 export async function openThread(
-  method: "thread/start" | "thread/resume",
+  method: "thread/start" | "thread/resume" | "thread/fork",
   send: () => Promise<JsonRecord>,
   serviceTier?: string,
   resumeId?: string,

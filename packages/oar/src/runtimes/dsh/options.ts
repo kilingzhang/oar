@@ -16,6 +16,7 @@ export const dshRefusedSessionOptions: RefusedSessionOptions = {
   userConfiguration: "DSH has no verified way to exclude user configuration while keeping its provider routes",
   goals: "This runtime interface exposes no verified structured native goal controls",
   endTurnProcessesOnAbort: "OAR has not verified reading and ending one aborted DSH turn's processes while its session stays usable",
+  forkFrom: "DSH's native fork semantics through this bridge have not been verified",
 };
 
 export interface DshAgentOptions {

@@ -15,6 +15,7 @@ export const opencodeRefusedSessionOptions: RefusedSessionOptions = {
   name: "opencode ACP exposes no verified session name setting",
   serviceTier: "opencode exposes no verified per-session service-tier setting and readback",
   disallowedTools: "opencode ACP has no session tool denylist; global permission rules can be overridden by agent rules and do not use the tool-name vocabulary consistently",
+  forkFrom: "ACP has no standard session fork method, and this runtime's native fork is unverified",
 };
 
 export const opencodeV1RefusedSessionOptions: RefusedSessionOptions = {

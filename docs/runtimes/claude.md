@@ -157,9 +157,19 @@ is not used). A blank name, or one with a NUL character, is refused before
 launch ([session name](../spec/runtime-matrix.md#session-name)).
 [Vendor test](../../sea-trial/vendor/claude-session-name.vendor.test.ts).
 
-Fork, session listing, history retrieval, rewind, and reset identity management
-are **not exposed**. Duplicate transcripts and concurrent controllers resuming
-one ID are **unverified**.
+**Fork (mapped).** `SessionOptions.forkFrom: { sessionId }` launches
+`claude --resume <source> --fork-session --session-id <new id>` (CLI
+2.1.319): claude copies the source's active context into a new transcript
+under the id OAR chooses, and the first native frame is a
+`SessionStart:fork` hook under that id. The adapter records a `fork` session
+edge on the new stream's first root frame and runs the same private
+`initialize` and `get_usage` readbacks as a resume. Claude forks the whole
+saved conversation, so `forkFrom.through` is refused rather than dropped;
+`resume` and `forkFrom` are mutually exclusive. The new session keeps its
+own id, fresh observers, sequence numbers and queue. Session listing,
+history retrieval, rewind, and reset identity management remain **not
+exposed**. Duplicate transcripts and concurrent controllers resuming one ID
+are **unverified**. [Fork tests](../../tests/claude/claude-fork.test.ts).
 
 ### Opening with SessionStart hooks
 
@@ -1558,7 +1568,7 @@ Evidence and verification limits: [tool-denial audit](../../experiments/disallow
 
 ## Launch arguments
 
-`SessionOptions.launchArgs` go on claude's command line after OAR's own flags and before `--add-dir`, `--mcp-config` and `--disallowed-tools`. Each takes several values until the next argument that starts with `-`, so a bare host value (one that is neither a flag nor a flag's value) after them would be read as theirs. OAR refuses at open (`UnsupportedOptionError` on `launchArgs`) a flag it manages itself, whose use would break the session or be silently overridden: `--continue`/`-c` and `--session-id` (claude exits next to OAR's own session id), `--resume`/`-r` (use `SessionOptions.resume`), `--fork-session` (claude would run under a new id that `Session.id` does not report), `--permission-prompt-tool` (OAR has no interface for answering permission requests), `--print`/`-p`, `--input-format`, `--output-format`, and `--json-schema` (use `SessionOptions.outputSchema`), also in the `--flag=value` form ([#336](https://github.com/botiverse/oar/issues/336), [launch-args.ts](../../packages/oar/src/runtimes/claude/launch-args.ts)). Each argument is compared whole, so a flag's value that happens to equal one of these (`["--append-system-prompt", "-p"]`) is refused too; pass such text through the matching `SessionOptions` field instead. `--no-session-persistence` is allowed, but claude then keeps no transcript, so resuming the session later fails with `SessionNotFoundError`. Everything else passes unchecked: an unknown flag makes claude exit at once, so a fresh session without a readback can open with the exit as its first record; resume and settings readbacks reject at open if it exits before answering. Never recorded; give them again on resume. See [launch arguments](../spec/runtime-matrix.md#launch-arguments).
+`SessionOptions.launchArgs` go on claude's command line after OAR's own flags and before `--add-dir`, `--mcp-config` and `--disallowed-tools`. Each takes several values until the next argument that starts with `-`, so a bare host value (one that is neither a flag nor a flag's value) after them would be read as theirs. OAR refuses at open (`UnsupportedOptionError` on `launchArgs`) a flag it manages itself, whose use would break the session or be silently overridden: `--continue`/`-c` and `--session-id` (claude exits next to OAR's own session id), `--resume`/`-r` (use `SessionOptions.resume`), `--fork-session` (use `SessionOptions.forkFrom`; claude would run under a new id that `Session.id` does not report), `--permission-prompt-tool` (OAR has no interface for answering permission requests), `--print`/`-p`, `--input-format`, `--output-format`, and `--json-schema` (use `SessionOptions.outputSchema`), also in the `--flag=value` form ([#336](https://github.com/botiverse/oar/issues/336), [launch-args.ts](../../packages/oar/src/runtimes/claude/launch-args.ts)). Each argument is compared whole, so a flag's value that happens to equal one of these (`["--append-system-prompt", "-p"]`) is refused too; pass such text through the matching `SessionOptions` field instead. `--no-session-persistence` is allowed, but claude then keeps no transcript, so resuming the session later fails with `SessionNotFoundError`. Everything else passes unchecked: an unknown flag makes claude exit at once, so a fresh session without a readback can open with the exit as its first record; resume and settings readbacks reject at open if it exits before answering. Never recorded; give them again on resume. See [launch arguments](../spec/runtime-matrix.md#launch-arguments).
 
 `--permission-mode` (`default`, `dontAsk`, `acceptEdits` or `plan`) replaces
 OAR's default bypass and forces `--permission-prompts none`; its refusals,
@@ -1657,7 +1667,8 @@ Where an SDK option has a counterpart:
 | `priority: "now"` | `session.abort()`, then `prompt` |
 | `q.interrupt()` | `session.abort()` |
 | `options.resume` | `SessionOptions.resume` |
-| `options.continue`, `forkSession` | not offered; `--continue` and `--fork-session` in `launchArgs` are refused |
+| `options.continue` | not offered; `--continue` in `launchArgs` is refused |
+| `forkSession` | `SessionOptions.forkFrom` (a new id and a `fork` edge; `--fork-session` in `launchArgs` is refused) |
 | `options.model`, `options.effort` | `SessionOptions.model`, `SessionOptions.effort` (the open fails when claude would apply another level, or none: [effort](#models-instructions-and-context)) |
 | `q.setModel`, `applyFlagSettings` mid-session | not yet ([live configuration](live-configure.md)); reopen with `resume` |
 | `options.cwd`, `options.env` | `SessionOptions.cwd`, `SessionOptions.env` (parent-session markers dropped) |

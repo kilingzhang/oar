@@ -132,7 +132,7 @@ export type RuntimeEventBody =
   | { readonly kind: "goal_changed"; readonly goal: GoalSnapshot | null }
   | UserMessage
   /** Native evidence of true session lineage, carried by the frame that names the relationship. Foreign session ids alone never establish an edge. */
-  | { readonly kind: "session_linked"; readonly parent: string; readonly child: string; readonly via: "tool_call" }
+  | { readonly kind: "session_linked"; readonly parent: string; readonly child: string; readonly via: "tool_call" | "fork" }
   /** The runtime reports an active turn. inputId names the input it started for; absent means unknown. After input_queued, only a matching inputId begins that input’s turn. */
   | { readonly kind: "turn_active"; readonly inputId?: string }
   /** The runtime holds this input and has not started its turn. Native queue evidence gates input-specific turn attribution; control acceptance alone does not. */

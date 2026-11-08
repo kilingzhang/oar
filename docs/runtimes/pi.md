@@ -243,7 +243,7 @@ sections describe the default SDK path unless the RPC differences above apply.
 | In-process AgentSession | One OAR Session wrapping the SDK object; no runtime subprocess. |
 | Session file header ID | `Session.id`; resume resolves it to a file in the cwd's session directory. Every open starts a new record stream at seq 0; history is not rebuilt. |
 | Agent run | One OAR turn: from the `prompt` request (accepted once pi emits `agent_start`) to pi's `agent_settled`, whose `turn_ended` event carries the outcome. Several native `turn_start`/`turn_end` pairs, threshold compaction and auto-retries sit inside it. |
-| History tree and replacement APIs | Resume is mapped; branch navigation, fork, import and history access are not exposed. |
+| History tree and replacement APIs | Resume and `SessionOptions.forkFrom` are mapped; branch navigation, import and history access are not exposed. |
 | ModelRuntime and ResourceLoader | Native services determine models/resources; OAR exposes selected startup options and catalog results. The `pi/session_opened` frame reports the effective model and thinking level as `model` and `effort` events. Outside sessions, `createPiProviderAuth` wraps `ModelRuntime.login`/`logout`/auth status and lists the providers pi's `/login` offers (`loginProviders`), and `createPiModelCatalog` wraps `ModelRegistry` (providers, model metadata, refresh). |
 | SDK event stream | Every `AgentSessionEvent` is exactly one Frame record, verbatim as `native`, with the events OAR reads from it ([table](#observation-history-and-children)). No `spanId` (pi has no native turn id); `agentPath` is always root; capabilities declare `attribution: "none"`. |
 | Control | `prompt`/`steer`/`queue`/`withdraw`/`abort`/`dispose` are request records answered accepted/rejected ([details](#prompt-steering-queueing-and-abort)). |
@@ -379,6 +379,21 @@ The directory formula, lookup and error are pinned by
 [`tests/pi/pi-session-resume.test.ts`](../../tests/pi/pi-session-resume.test.ts).
 [Resolver](../../packages/oar/src/runtimes/pi/resolve.ts).
 
+**Fork (mapped).** `SessionOptions.forkFrom: { sessionId }` resolves the
+source file the same way resume does, then calls
+`SessionManager.forkFrom(sourcePath, cwd, sessionDir)` (SDK 1.5.0): pi
+writes a new session file whose header `parentSession` names the source file
+and which holds a copy of the source's entries. OAR reports the new header
+id as `Session.id` and records a `fork` edge, with the native
+`parentSession` as its evidence, on the `pi/session_opened` frame. The new
+file is a new session: other open options apply as on create, the copied
+session name is replaced by a requested `name`, and the restored tool set is
+reset like a resume. Pi forks the whole saved conversation, so
+`forkFrom.through` is refused rather than dropped; `resume` and `forkFrom`
+are mutually exclusive, and a missing source file is the same
+`SessionNotFoundError` as a missing resume.
+[Fork tests](../../tests/pi/pi-session-fork.test.ts).
+
 **Extension lifecycle (SDK 1.1.0):** every OAR session, new or resumed,
 awaits `session.bindExtensions({})` after construction and option readback,
 before returning it to the host. Pi emits `{ type: "session_start", reason:
@@ -435,7 +450,7 @@ unavailable; OAR discards the returned `modelFallbackMessage`.
 Reopening creates a fresh record stream (seq 0), fresh observers and an empty
 adapter queue. It resumes the conversation, not interrupted execution or
 historical event delivery: after a death, replay comes from the host's own
-persisted records ([cursor](../spec/session-graph-and-cursor.md)). Native `session.messages`, tree navigation, fork and
+persisted records ([cursor](../spec/session-graph-and-cursor.md)). Native `session.messages`, tree navigation and
 import are **not exposed**. Corrupt-file handling and concurrent writers are
 **unverified**. What a crash in the middle of a tool call leaves for a resume
 is measured in [crash and resume](crash-resume.md) (SDK 0.99.2).

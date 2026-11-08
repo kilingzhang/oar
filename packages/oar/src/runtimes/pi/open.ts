@@ -128,6 +128,12 @@ export async function openPiAgentSession(options: SessionOptions, rememberKey?: 
   refuseSessionOptions(piRefusedSessionOptions, options);
   checkSessionName(options);
   checkPiSystemPrompt(options.systemPrompt);
+  if (options.resume !== undefined && options.forkFrom !== undefined) {
+    throw new UnsupportedOptionError("forkFrom", "forkFrom and resume are mutually exclusive");
+  }
+  if (options.forkFrom?.through !== undefined) {
+    throw new UnsupportedOptionError("forkFrom", "pi forks the whole saved conversation; forkFrom.through is not supported");
+  }
   validatePiMcpEnvironment(options);
   const thinkingLevel = options.effort === undefined ? undefined : piThinkingLevel(options.effort);
   const sdk = await import("@earendil-works/pi-coding-agent");
@@ -172,12 +178,21 @@ export async function openPiAgentSession(options: SessionOptions, rememberKey?: 
   // directory is used to create (so a later resume finds the file) and to
   // look a resumed id up.
   const sessionDir = piSessionDir(options.cwd, agentDir);
-  const sessionManager = options.resume === undefined
-    ? sdk.SessionManager.create(options.cwd, sessionDir)
-    : sdk.SessionManager.open(
-        await piFindSessionFile(sdk.SessionManager, options.resume, options.cwd, sessionDir),
+  // A fork reads the whole saved conversation into a new session file whose
+  // header points at the source. A resume stays in the source's own file.
+  const reopened = options.resume !== undefined || options.forkFrom !== undefined;
+  const sessionManager = options.forkFrom !== undefined
+    ? sdk.SessionManager.forkFrom(
+        await piFindSessionFile(sdk.SessionManager, options.forkFrom.sessionId, options.cwd, sessionDir),
+        options.cwd,
         sessionDir,
-      );
+      )
+    : (options.resume === undefined
+      ? sdk.SessionManager.create(options.cwd, sessionDir)
+      : sdk.SessionManager.open(
+          await piFindSessionFile(sdk.SessionManager, options.resume, options.cwd, sessionDir),
+          sessionDir,
+        ));
   // An explicit model wins over the one recorded in a resumed session
   // (sdk.js createAgentSession precedence, same in the services path); the
   // recorded one is restored only when none is given.
@@ -203,7 +218,7 @@ export async function openPiAgentSession(options: SessionOptions, rememberKey?: 
     ...(thinkingLevel === undefined ? {} : { thinkingLevel }),
     ...(overlay === undefined ? {} : { customTools: [await piEnvBashTool(options.cwd, overlay)] }),
   });
-  if (options.resume !== undefined) {
+  if (reopened) {
     // Pi 1.3 restores the transcript's active tools, including a prior open's
     // exclusions. OAR's denylist belongs to this open. Restore the current
     // native defaults before session_start, whose extensions may change them.
@@ -250,7 +265,9 @@ export async function openPiAgentSession(options: SessionOptions, rememberKey?: 
   // session_info entry on the session manager, so no extension sees a rename
   // event, and only once the checks above passed. A resumed session gets it
   // only if it never had one, so a name the user gave, or cleared, is kept.
-  if (options.name !== undefined && !sessionManager.getEntries().some((entry) => entry.type === "session_info")) {
+  // A fork is a new session and takes the requested name over the copied one.
+  const hasName = sessionManager.getEntries().some((entry) => entry.type === "session_info");
+  if (options.name !== undefined && (options.forkFrom !== undefined || !hasName)) {
     sessionManager.appendSessionInfo(options.name);
   }
   // Like each CLI startup (including --resume/--continue), keep the SDK

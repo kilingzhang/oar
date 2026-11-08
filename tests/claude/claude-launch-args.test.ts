@@ -3,7 +3,8 @@ import { UnsupportedOptionError } from "../../packages/oar/src/contracts/errors.
 import { refuseManagedLaunchArgs } from "../../packages/oar/src/runtimes/claude/launch-args.js";
 
 // #336 (Lookout's SDK comparison, claude 2.1.296): `--continue` made claude exit next to OAR's
-// `--session-id`, and after `--fork-session` Session.id kept the old id. Refuse such flags up front.
+// `--session-id`, and a bare `--fork-session` runs under an id OAR must own. Refuse such flags
+// up front; SessionOptions.forkFrom is the supported path.
 test.each(["--continue", "-c", "--resume", "-r", "--session-id", "--fork-session", "--permission-prompt-tool=stdio", "--permission-prompt-tool", "-p", "--output-format", "--json-schema"])("launchArgs %s is refused", (flag) => {
   expect(() => { refuseManagedLaunchArgs([flag, "value"]); }).toThrow(UnsupportedOptionError);
 });

@@ -202,6 +202,23 @@ are pinned against codex 0.162.0 ([missing targets](../spec/runtime-matrix.md#mi
 [`experiments/codex-session-name.ts`](../../experiments/codex-session-name.ts),
 [vendor test](../../sea-trial/vendor/codex-session-name.vendor.test.ts)).
 
+**Fork (mapped).** `SessionOptions.forkFrom: { sessionId, through? }` sends
+`thread/fork { threadId: <source>, lastTurnId?, excludeTurns: true, cwd,
+runtimeWorkspaceRoots?, model?, serviceTier?, approvalPolicy: "never",
+…instructions, config?: { model_reasoning_effort?, mcp_servers? } }`
+(0.165.0). The reply's `thread.id` is the new `Session.id`, and its
+`thread.forkedFromId` is the native lineage the adapter records as a `fork`
+edge on the open frame; a reply without it records no edge. `through`
+becomes `lastTurnId` (fork through that turn), while `excludeTurns: true`
+keeps the forked reply from replaying turns into the stream. A source with
+no rollout fails exactly like a missing resume (`SessionNotFoundError`), and
+codex persists a thread only after its first turn, so a just-started,
+never-prompted thread cannot be forked. Fork and resume are mutually
+exclusive; the reply's model and effort are read back against any explicit
+request, as on a new thread. Probed on 0.165.0: `thread/start`, one turn,
+then `thread/fork` returned a new thread whose `forkedFromId` named the
+source ([tests](../../tests/codex/codex-fork.test.ts)).
+
 **Process directory (mapped).** The app-server starts in `SessionOptions.cwd`,
 so stdio MCP servers and a relative `CODEX_HOME` resolve in the session's
 directory, not the host's
@@ -573,9 +590,10 @@ or translate these controls into text commands for other runtimes.
 
 ### Observation, children, and history
 
-**Mapped:** native thread read/list/fork operations expose stored state, and
-resume can return history; OAR exposes none of those and does not hydrate the
-stream from the resume result. Every notification enters the stream verbatim
+**Mapped:** `SessionOptions.forkFrom` uses `thread/fork` (see
+[fork](#connection-session-creation-and-resume)); native thread read/list
+operations expose stored state, and resume can return history; OAR exposes
+neither of those and does not hydrate the stream from the resume result. Every notification enters the stream verbatim
 (`native` is the params object) with a session-local `seq`, ingress
 `receivedAt`, and the native turn id as `spanId`; `rawEvents(observer,
 { sessionId, afterSeq })` replays the retained records of this process, then
@@ -1268,8 +1286,8 @@ material" row describes the former only.
 1. **Entry.** See [connection](#connection-session-creation-and-resume).
    Present upstream but not on OAR's path: `--listen ws://`,
    `--listen unix://`, `codex app-server daemon`, `codex app-server proxy`,
-   `thread/fork`, `ephemeral`, `thread/resume { path }` and `{ history }`
-   (vendor README).
+   `ephemeral`, `thread/resume { path }` and `{ history }`
+   (vendor README). `thread/fork` is used through `SessionOptions.forkFrom`.
 2. **Session and state storage.** Thread identity, rollout, and the sqlite
    index are codex's, under `CODEX_HOME`. OAR owns no storage: its record
    stream is process memory behind `records()`, gone with the process
@@ -1636,8 +1654,10 @@ Open gaps:
   `threads.sandbox_policy` reads `{"type":"disabled"}` while the same
   thread's `turn_context.sandbox_policy` reads
   `{"type":"danger-full-access"}`, recorded, not reconciled.
-- Not probed on 0.153.4: `ephemeral: true` on `thread/start`, whether
-  unloading a thread notifies clients, `thread/fork`,
+- `thread/fork` was not probed on 0.153.4; it was probed on 0.165.0
+  ([fork](#connection-session-creation-and-resume)). Not probed on
+  0.153.4: `ephemeral: true` on `thread/start`, whether
+  unloading a thread notifies clients,
   `thread/closed`, `thread/timeline/list`,
   `thread/read`, the write path for `thread_artifacts` /
   `thread_spawn_edges` / `thread_goals`, `codex agents`,

@@ -20,4 +20,5 @@ export const antigravityRefusedSessionOptions: RefusedSessionOptions = {
   // credentials reach a runtime only through its native channel, never its
   // disk. An entry without `env` or `headers` attaches as usual.
   mcpServerCredentials: "antigravity stores a session's MCP servers, env and header values included, in plain text in its conversation database, where they outlive the session; it attaches no entry with env or headers",
+  forkFrom: "This runtime interface exposes no verified native session fork",
 };

@@ -6,6 +6,7 @@ import { createAbortFallback } from "../abort-fallback.js";
 import { withInputImages, type LoadedImage } from "../input-images.js";
 import { withdrawControl } from "../held-input.js";
 import { asRecord, parseJson } from "../json.js";
+import { withOpenLinks } from "../session-links.js";
 import type { SessionCredentials } from "../session-credentials.js";
 import { appendCleanupFailure, cleanupFailureReason } from "../executable/process-cleanup.js";
 import type { LineProcess } from "../executable/index.js";
@@ -23,6 +24,7 @@ export async function streamJsonSession<S extends StreamJsonProjectionState>(
   profile: StreamJsonSessionProfile<S>,
 ): Promise<Session> {
   const kernel = credentials.kernel(sessionId);
+  let openLinks = [...(profile.openLinks ?? [])];
   const tasks = profile.stopTask === undefined ? undefined : streamJsonTaskControl(kernel, child, profile.stopTask);
   const userMessage = profile.userMessage ?? streamJsonUserMessage;
   const state: StreamJsonSessionState<S> = { child, active: null, spontaneous: false, projection: profile.initial, disposed: false };
@@ -102,7 +104,9 @@ export async function streamJsonSession<S extends StreamJsonProjectionState>(
             if (state.projection.pendingInputId === null) { state.active = null; }
             state.spontaneous = false;
           }
-          const record = kernel.frame(correlated ? { ...command.body, responseTo: nativeResponse } : command.body, { agentPath: command.agentPath });
+          const opened = withOpenLinks(kernel, correlated ? { ...command.body, responseTo: nativeResponse } : command.body, openLinks, command.agentPath.length === 0);
+          openLinks = [...opened.openLinks];
+          const record = kernel.frame(opened.body, { agentPath: command.agentPath });
           if (record.agentPath.length > 0) { break; }
           ended ||= closes;
           const cancelled = command.body.events.find((event) => event.kind === "input_dropped");

@@ -70,7 +70,7 @@ export const codexSession: StartSession = withSessionCredentials(async (installa
     const started = await openThread(openMethod, async () => {
       const reply = await client.request(openMethod, filteredOpenParams, markOpen);
       return reply;
-    }, options.serviceTier, options.resume);
+    }, options.serviceTier, options.resume ?? options.forkFrom?.sessionId);
     const threadId = asRecord(started.thread)?.id;
     if (typeof threadId !== "string") { throw new TypeError("codex thread start/resume returned no thread id"); }
     // The reply is codex's word on the model and effort the thread runs (the
@@ -96,7 +96,9 @@ export const codexSession: StartSession = withSessionCredentials(async (installa
     let disposeRequest: RequestRecord | null = null;
     // A resume's effort update in flight: codex's thread/settings/updated answers it.
     let settingsWaiter: ((params: JsonRecord) => void) | null = null;
-    recordOpen = (): void => { kernel.frame({ type: openMethod, native: started, events: readback.events }); };
+    const forkedFromId = asRecord(started.thread)?.forkedFromId;
+    const openLinks = typeof forkedFromId === "string" ? [{ parent: forkedFromId, child: threadId, via: "fork" as const }] : [];
+    recordOpen = (): void => { kernel.frame({ type: openMethod, native: started, events: [...readback.events, ...newSessionLinks(kernel, openLinks)] }); };
     // Drive the pure projection fold, applying its commands to the kernel; the
     // fold owns event translation, attribution and graph links; this owns the
     // transport-only turn id and the control decisions (busy, spontaneous).

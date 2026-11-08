@@ -11,6 +11,7 @@ export const codebuddyRefusedSessionOptions: RefusedSessionOptions = {
   name: "CodeBuddy has no verified session name option",
   serviceTier: "CodeBuddy ACP has no verified service-tier setting and readback",
   additionalDirectories: "CodeBuddy ACP does not advertise additionalDirectories",
+  forkFrom: "This runtime interface exposes no verified native session fork",
 };
 
 export function checkCodebuddyLaunchArgs(args: SessionOptions["launchArgs"]): void {
